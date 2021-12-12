@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-unsigned int horizontalPos, depth = 0;
-
 const bool stringsAreEqual(std::string const &one, std::string const &other) {
   return one.compare(other) == 0;
 }
@@ -75,16 +73,18 @@ part2(std::vector<std::pair<std::string, int>> const data) {
 
 int main(int argc, char *argv[]) {
   const auto data = read_input("input");
-  std::pair<int, int> tmp;
+  std::pair<int, int> result;
 
-  tmp = part1(data);
-  std::cout << "Part 1:\nFinal horizontal position: " << tmp.first << std::endl;
-  std::cout << "Final depth: " << tmp.second << std::endl;
-  std::cout << "Multiplied: " << tmp.first * tmp.second << std::endl;
+  result = part1(data);
+  std::cout << "Part 1:\nFinal horizontal position: " << result.first
+            << std::endl;
+  std::cout << "Final depth: " << result.second << std::endl;
+  std::cout << "Multiplied: " << result.first * result.second << std::endl;
 
-  tmp = part2(data);
-  std::cout << "Part 2:\nFinal horizontal position: " << tmp.first << std::endl;
-  std::cout << "Final depth: " << tmp.second << std::endl;
-  std::cout << "Multiplied: " << tmp.first * tmp.second << std::endl;
+  result = part2(data);
+  std::cout << "Part 2:\nFinal horizontal position: " << result.first
+            << std::endl;
+  std::cout << "Final depth: " << result.second << std::endl;
+  std::cout << "Multiplied: " << result.first * result.second << std::endl;
   return EXIT_SUCCESS;
 }
