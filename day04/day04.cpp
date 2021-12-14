@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -10,13 +11,13 @@ public:
   Board() {
     this->done = false;
     this->numbers = std::array<std::array<int, 5>, 5>();
-    this->drawn = std::array<std::array<bool, 5>, 5>();
+    this->marked = std::array<std::array<bool, 5>, 5>();
 
     for (auto row : numbers) {
       row.fill(0);
     }
 
-    for (auto row : drawn) {
+    for (auto row : marked) {
       row.fill(false);
     }
   }
@@ -24,9 +25,9 @@ public:
   Board(std::array<std::array<int, 5>, 5> numbers) {
     this->done = false;
     this->numbers = numbers;
-    this->drawn = std::array<std::array<bool, 5>, 5>();
+    this->marked = std::array<std::array<bool, 5>, 5>();
 
-    for (auto row : drawn) {
+    for (auto row : marked) {
       row.fill(false);
     }
   }
@@ -35,27 +36,48 @@ public:
   Board(const Board &) = default;
   Board &operator=(Board &&) = default;
   Board &operator=(const Board &) = default;
-  ~Board();
+  ~Board() = default;
 
-  void draw(int number) {
+  void mark(int number) {
     for (int row = 0; row < 5; row++) {
       for (int col = 0; col < 5; col++) {
         if (numbers[row][col] == number) {
-          drawn[row][col] = true;
+          marked[row][col] = true;
         }
       }
     }
-    // check if done
+    this->check_if_done();
   }
 
   void check_if_done() {
-    for (auto row : this->numbers) {
+    for (int i = 0; i < 5; i++) {
+      if (std::all_of(this->marked[i].begin(), this->marked[i].end(),
+                      [](bool b) { return b; })) {
+        this->done = true;
+        return;
+      }
+      int j = 0;
+      for (; j < 5; j++) {
+        if (!this->marked[i][j]) {
+          break;
+        }
+      }
+      if (j == 5) {
+        this->done = true;
+        return;
+      }
     }
+  }
+
+  bool is_done() const { return this->done; }
+
+  std::array<std::array<int, 5>, 5> get_numbers() const {
+    return this->numbers;
   }
 
 private:
   std::array<std::array<int, 5>, 5> numbers;
-  std::array<std::array<bool, 5>, 5> drawn;
+  std::array<std::array<bool, 5>, 5> marked;
   bool done;
 };
 
@@ -75,13 +97,23 @@ std::vector<int> get_draws(std::string const filename) {
   return resultbuf;
 }
 
-std::vector<std::array<std::array<int, 5>, 5>>
-get_boards(std::string const filename) {
+std::ostream &operator<<(std::ostream &out, const Board board) {
+  for (auto row : board.get_numbers()) {
+    for (auto number : row) {
+      out << number << ' ';
+    }
+    out << std::endl;
+  }
+
+  return out;
+}
+
+std::vector<Board> get_boards(std::string const filename) {
   std::fstream input(filename);
   std::string stringbuf;
   std::stringstream streambuf;
   std::array<std::array<int, 5>, 5> boardbuf;
-  std::vector<std::array<std::array<int, 5>, 5>> resultbuf;
+  std::vector<Board> resultbuf;
 
   int currLine = 0;
   int currCol = 0;
@@ -103,7 +135,7 @@ get_boards(std::string const filename) {
       currCol = 0;
     } else {
       currLine = 0;
-      resultbuf.push_back(boardbuf);
+      resultbuf.push_back(Board(boardbuf));
     }
   }
 
@@ -113,6 +145,30 @@ get_boards(std::string const filename) {
 int main(int argc, char *argv[]) {
   auto draws = get_draws("input");
   auto boards = get_boards("input");
+  bool done = false;
+  Board winner;
+
+  for (Board board : boards) {
+    std::cout << board << std::endl << std::endl;
+  }
+  /*
+    for (auto draw : draws) {
+      for (auto board : boards) {
+        board.mark(draw);
+
+        if (board.is_done()) {
+          winner = board;
+          done = true;
+          break;
+        }
+      }
+
+      if (done) {
+        break;
+      }
+    }
+
+    std::cout << winner << std::endl; */
 
   return EXIT_SUCCESS;
 }
