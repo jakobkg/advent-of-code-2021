@@ -9,27 +9,15 @@
 class Board {
 public:
   Board() {
-    this->done = false;
+    this->bingo = false;
     this->numbers = std::array<std::array<int, 5>, 5>();
     this->marked = std::array<std::array<bool, 5>, 5>();
-
-    for (auto row : numbers) {
-      row.fill(0);
-    }
-
-    for (auto row : marked) {
-      row.fill(false);
-    }
   }
 
   Board(std::array<std::array<int, 5>, 5> numbers) {
-    this->done = false;
+    this->bingo = false;
     this->numbers = numbers;
     this->marked = std::array<std::array<bool, 5>, 5>();
-
-    for (auto row : marked) {
-      row.fill(false);
-    }
   }
 
   Board(Board &&) = default;
@@ -38,50 +26,77 @@ public:
   Board &operator=(const Board &) = default;
   ~Board() = default;
 
+  friend std::ostream &operator<<(std::ostream &out, const Board &board) {
+    for (auto row : board.getNumbers()) {
+      for (auto number : row) {
+        out << number << ' ';
+      }
+      out << std::endl;
+    }
+
+    return out;
+  }
+
   void mark(int number) {
     for (int row = 0; row < 5; row++) {
       for (int col = 0; col < 5; col++) {
-        if (numbers[row][col] == number) {
-          marked[row][col] = true;
+        if (this->numbers[row][col] == number) {
+          this->marked[row][col] = true;
         }
       }
     }
-    this->check_if_done();
+    this->checkIfDone();
   }
 
-  void check_if_done() {
-    for (int i = 0; i < 5; i++) {
-      if (std::all_of(this->marked[i].begin(), this->marked[i].end(),
-                      [](bool b) { return b; })) {
-        this->done = true;
-        return;
-      }
-      int j = 0;
-      for (; j < 5; j++) {
-        if (!this->marked[i][j]) {
-          break;
+  bool hasBingo() const { return this->bingo; }
+
+  std::array<std::array<int, 5>, 5> getNumbers() const { return this->numbers; }
+
+  int calculateScore(int drawn) const {
+    int sum = 0;
+
+    for (int row = 0; row < 5; row++) {
+      for (int col = 0; col < 5; col++) {
+        if (!this->marked[row][col]) {
+          sum += this->numbers[row][col];
         }
       }
-      if (j == 5) {
-        this->done = true;
-        return;
-      }
     }
-  }
 
-  bool is_done() const { return this->done; }
-
-  std::array<std::array<int, 5>, 5> get_numbers() const {
-    return this->numbers;
+    return sum * drawn;
   }
 
 private:
   std::array<std::array<int, 5>, 5> numbers;
   std::array<std::array<bool, 5>, 5> marked;
-  bool done;
+  bool bingo;
+
+  void checkIfDone() {
+    for (auto row : this->marked) {
+      if (std::all_of(row.begin(), row.end(), [](bool b) { return b; })) {
+        this->bingo = true;
+        return;
+      }
+    }
+
+    std::array<std::array<bool, 5>, 5> tmp;
+
+    for (int i = 0; i < 5; i++) {
+      for (int j = 0; j < 5; j++) {
+        tmp[j][i] = this->marked[i][j];
+      }
+    }
+
+    for (auto col : tmp) {
+      if (std::all_of(col.begin(), col.end(), [](bool b) { return b; })) {
+        this->bingo = true;
+        return;
+      }
+    }
+  }
 };
 
-std::vector<int> get_draws(std::string const filename) {
+std::vector<int> getDraws(std::string const filename) {
   std::fstream input(filename);
   std::string stringbuf;
   std::stringstream streambuf;
@@ -97,22 +112,11 @@ std::vector<int> get_draws(std::string const filename) {
   return resultbuf;
 }
 
-std::ostream &operator<<(std::ostream &out, const Board board) {
-  for (auto row : board.get_numbers()) {
-    for (auto number : row) {
-      out << number << ' ';
-    }
-    out << std::endl;
-  }
-
-  return out;
-}
-
-std::vector<Board> get_boards(std::string const filename) {
+std::vector<Board> getBoards(std::string const filename) {
   std::fstream input(filename);
   std::string stringbuf;
-  std::stringstream streambuf;
-  std::array<std::array<int, 5>, 5> boardbuf;
+  int numbuf;
+  std::array<std::array<int, 5>, 5> boardbuf = {{0}};
   std::vector<Board> resultbuf;
 
   int currLine = 0;
@@ -124,10 +128,8 @@ std::vector<Board> get_boards(std::string const filename) {
 
   while (std::getline(input, stringbuf)) {
     if (stringbuf.size() > 0) {
-      streambuf.str(stringbuf);
-
-      while (std::getline(streambuf, stringbuf, ' ')) {
-        boardbuf[currLine][currCol] = std::stoi(stringbuf);
+      for (std::istringstream num_iss(stringbuf); num_iss >> numbuf;) {
+        boardbuf[currLine][currCol] = numbuf;
         currCol++;
       }
 
@@ -142,33 +144,66 @@ std::vector<Board> get_boards(std::string const filename) {
   return resultbuf;
 }
 
-int main(int argc, char *argv[]) {
-  auto draws = get_draws("input");
-  auto boards = get_boards("input");
-  bool done = false;
-  Board winner;
+std::pair<Board, int> firstWinner(std::vector<int> const draws,
+                                  std::vector<Board> const boards) {
+  std::vector<Board> boardscopy = boards;
+  for (int draw : draws) {
+    for (Board &board : boardscopy) {
+      board.mark(draw);
 
-  for (Board board : boards) {
-    std::cout << board << std::endl << std::endl;
-  }
-  /*
-    for (auto draw : draws) {
-      for (auto board : boards) {
-        board.mark(draw);
-
-        if (board.is_done()) {
-          winner = board;
-          done = true;
-          break;
-        }
+      if (board.hasBingo()) {
+        return std::pair<Board, int>(board, draw);
       }
+    }
+  }
 
-      if (done) {
-        break;
+  return std::pair<Board, int>();
+}
+
+std::pair<Board, int> lastWinner(std::vector<int> const draws,
+                                 std::vector<Board> const boards) {
+  std::vector<Board> boardscopy = boards;
+  int lastdraw, winners = 0;
+  Board lastWinningBoard;
+
+  for (int draw : draws) {
+    for (Board &board : boardscopy) {
+      if (!board.hasBingo()) {
+        board.mark(draw);
+        if (board.hasBingo()) {
+          winners++;
+          lastWinningBoard = board;
+          lastdraw = draw;
+        }
       }
     }
 
-    std::cout << winner << std::endl; */
+    if (winners == boardscopy.size()) {
+      break;
+    }
+  }
 
+  return std::pair<Board, int>(lastWinningBoard, lastdraw);
+}
+
+int main(int argc, char *argv[]) {
+  auto draws = getDraws("input");
+  auto boards = getBoards("input");
+
+  std::cout << "Part 1" << std::endl;
+  auto firstwin = firstWinner(draws, boards);
+  auto winner = firstwin.first;
+  auto final_draw = firstwin.second;
+  std::cout << "The first winning board was:\n" << winner << std::endl;
+  std::cout << "The score of this board is "
+            << winner.calculateScore(final_draw) << std::endl;
+
+  std::cout << "\nPart 2" << std::endl;
+  auto lastwin = lastWinner(draws, boards);
+  winner = lastwin.first;
+  final_draw = lastwin.second;
+  std::cout << "The last winning board was:\n" << winner << std::endl;
+  std::cout << "The score of this board is "
+            << winner.calculateScore(final_draw) << std::endl;
   return EXIT_SUCCESS;
 }
